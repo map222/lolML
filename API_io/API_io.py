@@ -75,6 +75,14 @@ def make_matchlist_url_summoner_ID(cur_ID, solo_ranked_flag, season_flag, api_ke
     return 'https://na.api.pvp.net/api/lol/na/v2.2/matchlist/by-summoner/' + \
                         str(cur_ID) + '?' + solo_ranked_string + season_string + 'api_key=' + api_key
 
+def make_match_info_url(match_ID, timeline_flag, api_key):
+    if timeline_flag:
+        timeline_string = 'includeTimeline=true&'
+    else:
+        timeline_string = ''
+    return 'https://na.api.pvp.net/api/lol/na/v2.2/match/' + str(match_ID) + '?' + \
+            timeline_string + 'api_key=' + api_key
+    
 import time
 def rate_limited(maxPerSecond):
     minInterval = 1.0 / float(maxPerSecond)
@@ -91,9 +99,7 @@ def rate_limited(maxPerSecond):
         return rateLimitedFunction
     return decorate
      
-@rate_limited(0.5)
+@rate_limited(0.4)
 def get_limited_request(request_url):
     return requests.get(request_url).json()
     
-def make_match_info_url(match_ID, api_key):
-    return 'https://na.api.pvp.net/api/lol/na/v2.2/match/' + str(match_ID) + '?api_key=' + api_key
