@@ -1,6 +1,10 @@
 # LoL API Key
 api_key.txt
 
+# Data files
+Match IDs.csv
+full match info.txt
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
