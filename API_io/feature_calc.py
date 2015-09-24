@@ -57,44 +57,79 @@ def assign_kills( match_info, last_min = 10):
     """    
     
     champion_kills = identify_events(match_info, 'CHAMPION_KILL', last_min) # get the kill events from JSON
-    team100_kills = sum([x['killerId'] < 6 for x in champion_kills]) # blue team is ID's 1-5
-    team200_kills = sum([x['killerId'] > 5 for x in champion_kills]) 
+    killers = np.array([x['killerId'] for x in champion_kills]) # identify killers
     
-    return team100_kills, team200_kills
+    # sum kills for each team
+    team100_kills = sum(killers < 6) # blue team is ID's 1-5
+    team200_kills = sum(killers > 5)
     
-def calc_all_features(full_match_info, last_min = 10):
-    """ Calculate all features for a game, and returns a pandas DataFrame
+    # calculate share of team kills for person with most
+    kill_counts, _ = np.histogram(killers)
+    team100_share = kill_counts[:5].max()
+    team200_share = kill_counts[5:].max()
+    
+    return team100_kills, team200_kills, team100_share / max(team100_kills, 1), team200_share / max(team200_kills, 1)
+    
+def calc_features_single_match(match_info, last_min = 10):
+    """ Calculate all features for a single game, and returns a pandas DataFrame
 
     Argument:
     full_match_info: a list of JSON objects containing League of Legends game timelines
     last_min: The minute through which to calculate stuff
     """    
+
+    # assign factor of first tower, need to update Dragon and Blood to match tower
+    first_dragon = match_info['teams'][0]['firstDragon']
+    first_tower = calc_first_tower(match_info, last_min)
+    first_blood = match_info['teams'][0]['firstBlood']
+    gold_diff = calc_gold_at_min(match_info, last_min)
     
-    games_df = pd.DataFrame()
-    # only look at first team, since results are symmetric
-    games_df['first_dragon'] = [ x['teams'][0]['firstDragon'] for x in full_match_info ]
+    blue_kills, red_kills, blue_share, red_share = assign_kills(match_info, last_min)
+    winner =  match_info['teams'][0]['winner']
+    col_names = ['first_dragon', 'first_tower', 'first_blood', 'gold_diff', 'blue_kills',
+                 'red_kills', 'blue_share', 'red_share', 'winner']
     
-    # assign first tower if it exists
-    valid_towers = [validate_first_tower(x, last_min) for x in full_match_info]
-    first_tower_team = [ x['teams'][0]['firstTower'] for x in full_match_info ]
-    def assign_maybe_event(valid, team):
-        if valid:
-            return team
-        else:
-            return None
-    games_df['first_tower'] = [ assign_maybe_event(x[0], x[1]) for x in zip(valid_towers, first_tower_team)] 
-    games_df['first_blood'] = [ x['teams'][0]['firstBlood'] for x in full_match_info ]
-    games_df['gold_diff'] = [ calc_gold_at_min(x, last_min) for x in full_match_info]
+    return [first_dragon, first_tower, first_blood, gold_diff, blue_kills, red_kills, blue_share, red_share, winner]
     
-    games_df['blue_kills'] = 0 # need to initialize these columns, so you can assign as tuple later
-    games_df['red_kills'] = 0
-    games_df[['blue_kills', 'red_kills']] = [ assign_kills(x, last_min) for x in full_match_info]
-    games_df['winner'] = [ x['teams'][0]['winner'] for x in full_match_info ]
+def calc_features_all_matches(full_match_info, last_min):
+    """
+    Apply calc_features_single_match to JSON of matches
+    """
+    col_names = ['first_dragon', 'first_tower', 'first_blood', 'gold_diff', 'blue_kills',
+                 'red_kills', 'blue_share', 'red_share', 'winner']
+    games_df = pd.DataFrame(index = np.arange(np.size(full_match_info)), columns= col_names)
+    for i, cur_match in enumerate(full_match_info):
+        games_df.loc[i] = calc_features_single_match(cur_match, last_min)
+    
+    games_df = retype_columns(games_df)    
     
     return games_df
 
-def validate_first_tower(match_info, last_min = 10):
+def retype_columns(games_df):
+    
+    col_names = ['first_dragon', 'first_tower', 'first_blood', 'gold_diff', 'blue_kills',
+                 'red_kills', 'blue_share', 'red_share', 'winner']
+    for x in col_names[:3]:
+        games_df[x] = games_df[x].astype(int).astype('category')
+    games_df[col_names[3:6]] = games_df[col_names[3:6]].astype(int)
+    games_df[col_names[6:8]] = games_df[col_names[6:8]].astype(float)
+    games_df[col_names[-1]] = games_df[col_names[-1]].astype(int).astype('category')
+    return games_df
+
+def calc_first_tower(match_info, last_min = 10):
     """ Calculates whether first tower fell within timeframe
+    
+    Returns:
+    -1 if no tower fallen yet
+    0 if red team killed tower
+    1 if blue team killed tower
     """
+    
     tower_deaths = identify_events(match_info, 'BUILDING_KILL', last_min)
-    return tower_deaths.size > 1
+    tower_flag =  tower_deaths.size > 1
+    
+    first_tower_team = match_info['teams'][0]['firstTower']
+    if tower_flag:
+        return np.array(first_tower_team).astype(int)
+    else:
+        return np.array(-1)
