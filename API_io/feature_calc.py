@@ -14,7 +14,7 @@ col_names = ['first_dragon', 'blue_dragons', 'red_dragons',
              'first_tower', 'blue_towers', 'red_towers',
              'first_inhib', 'blue_inhibs', 'red_inhibs',
              'first_blood', 'gold_diff', 'blue_kills',
-             'red_kills', 'blue_share', 'red_share', 'surrender', 'winner']
+             'red_kills', 'blue_share', 'red_share', 'surrender', 'game_length', 'winner']
              
 def calc_features_single_match(match_info, last_min = 10):
     """ Calculate all features for a single game, and returns a pandas DataFrame
@@ -34,10 +34,11 @@ def calc_features_single_match(match_info, last_min = 10):
     kills_features = assign_kills(match_info, last_min)
     surrendered = calc_surrender_feature(match_info)
     winner =  int(match_info['teams'][0]['winner'])
+    game_length = np.size(match_info['timeline']['frames'])
     
     # use itertools to make a single list
     all_features = list(itertools.chain.from_iterable([monster_features, building_features, [first_blood], 
-                                        [gold_diff], kills_features, [surrendered], [winner]])) 
+                                        [gold_diff], kills_features, [surrendered], [game_length], [winner]])) 
     return all_features
     
 def calc_features_all_matches(full_match_info, last_min):
@@ -56,25 +57,15 @@ def calc_features_all_matches(full_match_info, last_min):
 
 def retype_columns(games_df):
     """ col_names defined at start of file """
+    
+    games_df = games_df.convert_objects(convert_numeric=True)
+    
     import re
     
+    # first blood, dragon, etc. are categories
     first_cols = [ col for col in col_names if re.search('^first', col) ]
     for col in first_cols:
         games_df[col] = games_df[col].astype('category')
-    
-    red_cols = [ col for col in col_names if re.search('^red.*s$', col) ]
-    for col in red_cols:
-        games_df[col] = games_df[col].astype(int)
-        
-    blue_cols = [ col for col in col_names if re.search('^blue.*s$', col) ]
-    for col in blue_cols:
-        games_df[col] = games_df[col].astype(int)
-    
-    games_df['gold_diff'] = games_df['gold_diff'].astype(int)
-    
-    share_cols = [ col for col in col_names if re.search('share$', col) ]
-    for col in share_cols:
-        games_df[col] = games_df[col].astype(float)
         
     games_df['surrender'] = games_df['surrender'].astype('category')
     games_df['winner'] = games_df['winner'].astype('category')

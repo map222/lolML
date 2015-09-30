@@ -7,7 +7,7 @@ Created on Sat Sep 19 10:21:47 2015
 import requests
 import numpy as np
 
-def load_featured_games( api_key):
+def load_featured_games( api_key, region = 'na'):
     """ Loads the game IDs of the "featured games"
     
         Argument:
@@ -17,11 +17,11 @@ def load_featured_games( api_key):
         featured_game_ids: List of ints of game IDs
     """
     
-    featured_url = 'https://na.api.pvp.net/observer-mode/rest/featured' + '?api_key=' + api_key
+    featured_url = 'https://' + region + '.api.pvp.net/observer-mode/rest/featured' + '?api_key=' + api_key
     featured_json = requests.get(featured_url).json()['gameList'] # load the url of featured games, and parse the JSON
     return featured_json
     
-def get_summoners_IDs_from_featured_games(featured_json, api_key):
+def get_summoners_IDs_from_featured_games(featured_json, api_key, region = 'na'):
     """
     Load the summoner names and summoner IDs from the featured game JSON
     
@@ -39,7 +39,7 @@ def get_summoners_IDs_from_featured_games(featured_json, api_key):
     # get summoner IDs for the participants:
     
     participant_names_single_string = urlify_string_list(participant_names)
-    summoner_url = 'https://na.api.pvp.net/api/lol/na/v1.4/summoner/by-name/' + participant_names_single_string + '?api_key=' + api_key
+    summoner_url = 'https://'+region + '.api.pvp.net/api/lol/' + region + '/v1.4/summoner/by-name/' + participant_names_single_string + '?api_key=' + api_key
     summoner_info = requests.get(summoner_url).json()
     
     summoner_ids = [x['id'] for x in list(summoner_info.values())]
@@ -51,7 +51,7 @@ def urlify_string_list(list_of_string):
     """
     return ','.join(list_of_string[:30]) # convert to a single string for the url
 
-def make_matchlist_url_summoner_ID(cur_ID, solo_ranked_flag, season_flag, api_key):
+def make_matchlist_url_summoner_ID(cur_ID, solo_ranked_flag, season_flag, api_key, region = 'na'):
     """ Creates a request url for the given summoner ID, and the flags
     
     Arguments:
@@ -72,15 +72,15 @@ def make_matchlist_url_summoner_ID(cur_ID, solo_ranked_flag, season_flag, api_ke
     else:
         season_string = ''
         
-    return 'https://na.api.pvp.net/api/lol/na/v2.2/matchlist/by-summoner/' + \
+    return 'https://' + region+ '.api.pvp.net/api/lol/' + region + '/v2.2/matchlist/by-summoner/' + \
                         str(cur_ID) + '?' + solo_ranked_string + season_string + 'api_key=' + api_key
 
-def make_match_info_url(match_ID, timeline_flag, api_key):
+def make_match_info_url(match_ID, timeline_flag, api_key, region = 'na'):
     if timeline_flag:
         timeline_string = 'includeTimeline=true&'
     else:
         timeline_string = ''
-    return 'https://na.api.pvp.net/api/lol/na/v2.2/match/' + str(match_ID) + '?' + \
+    return 'https://' + region + '.api.pvp.net/api/lol/' + region + '/v2.2/match/' + str(match_ID) + '?' + \
             timeline_string + 'api_key=' + api_key
     
 import time
@@ -99,7 +99,7 @@ def rate_limited(maxPerSecond):
         return rateLimitedFunction
     return decorate
      
-@rate_limited(0.4)
+@rate_limited(0.8)
 def get_limited_request(request_url):
     return requests.get(request_url).json()
     

@@ -2,9 +2,8 @@
 api_key.txt
 
 # Data files
-Match IDs.csv
-full match info.txt
-games 1-2000.txt
+*.csv
+*.json
 
 # Windows image file caches
 Thumbs.db
