@@ -4,6 +4,7 @@ api_key.txt
 # Data files
 *.csv
 *.json
+*.pickle
 
 # Windows image file caches
 Thumbs.db

@@ -9,12 +9,13 @@ import numpy as np
 import pandas as pd
 import itertools
 
-col_names = ['first_dragon', 'blue_dragons', 'red_dragons',
+col_names = ['first_dragon', 'blue_dragons', 'red_dragons', 'drag_diff',
              'first_baron', 'blue_barons', 'red_barons',
-             'first_tower', 'blue_towers', 'red_towers',
+             'first_tower', 'blue_towers', 'red_towers', 'tower_diff',
              'first_inhib', 'blue_inhibs', 'red_inhibs',
              'first_blood', 'gold_diff', 'blue_kills',
-             'red_kills', 'blue_share', 'red_share', 'surrender', 'game_length', 'winner']
+             'red_kills', 'blue_share', 'red_share', 'kills_diff',
+             'surrender', 'game_length', 'winner']
              
 def calc_features_single_match(match_info, last_min = 10):
     """ Calculate all features for a single game, and returns a pandas DataFrame
@@ -49,9 +50,16 @@ def calc_features_all_matches(full_match_info, last_min):
     
     games_df = pd.DataFrame(index = np.arange(np.size(full_match_info)), columns= col_names)
     for i, cur_match in enumerate(full_match_info):
-        games_df.loc[i] = calc_features_single_match(cur_match, last_min)
+        if np.size(cur_match['timeline']['frames']) > last_min: # make sure match lasted long enough
+            try:
+                games_df.loc[i] = calc_features_single_match(cur_match, last_min)
+            except:
+                print('Error creating factors in game: ' + str(i))
+        else:
+            continue
     
-    games_df = retype_columns(games_df)    
+    games_df = retype_columns(games_df)
+    games_df = games_df.dropna()
     
     return games_df
 
@@ -105,9 +113,12 @@ def identify_events( match_info, event_name, last_min =10):
         
     events_list = np.empty(0) # start with empty list
     for i in np.arange(1, last_min):
-        cur_frame = np.array(match_info['timeline']['frames'][i]['events'])
-        kill_indices = [x['eventType'] == event_name for x in cur_frame]
-        events_list = np.append(events_list, cur_frame[np.array(kill_indices)])
+        try:
+            cur_frame = np.array(match_info['timeline']['frames'][i]['events'])
+            event_indices = [x['eventType'] == event_name for x in cur_frame]
+            events_list = np.append(events_list, cur_frame[np.array(event_indices)])
+        except KeyError:
+            print('Empty frame ' + str(i) + ' in match ' + str(match_info['matchId']))
     return events_list
     
 def calc_gold_at_min( match_info, last_min ):
@@ -118,18 +129,18 @@ def calc_gold_at_min( match_info, last_min ):
     match_info: a JSON of a single match
     
     Returns:
-    The difference between the sum of team100's gold and team200's gold (I think team100 = blue)
+    The difference between the sum of blue's gold and red's gold
     """
     
     tenmin_frame = match_info['timeline']['frames'][last_min]['participantFrames'] # plus one because 0 = time 0
-    team100_gold = [tenmin_frame[x]['totalGold'] for x in ['1', '2', '3', '4', '5'] ]
-    team200_gold = [tenmin_frame[x]['totalGold'] for x in ['6', '7', '8', '9', '10'] ]
+    blue_gold = [tenmin_frame[x]['totalGold'] for x in ['1', '2', '3', '4', '5'] ]
+    red_gold = [tenmin_frame[x]['totalGold'] for x in ['6', '7', '8', '9', '10'] ]
     
-    return sum(team100_gold) - sum(team200_gold)
+    return sum(blue_gold) - sum(red_gold)
 
 def assign_kills( match_info, last_min = 10):
     """
-    Assigns a kills to team100 or team200, then sums all tlhe kills
+    Assigns a kills to blue or red, then sums all tlhe kills
     
     Arguments: 
     see identify_kills
@@ -142,15 +153,15 @@ def assign_kills( match_info, last_min = 10):
     killers = np.array([x['killerId'] for x in champion_kills]) # identify killers
     
     # sum kills for each team
-    team100_kills = sum(killers < 6) # blue team is ID's 1-5
-    team200_kills = sum(killers > 5)
+    blue_kills = sum(killers < 6) # blue team is ID's 1-5
+    red_kills = sum(killers > 5)
     
     # calculate share of team kills for person with most
     kill_counts, _ = np.histogram(killers)
-    team100_share = kill_counts[:5].max()
-    team200_share = kill_counts[5:].max()
+    blue_share = kill_counts[:5].max()
+    red_share = kill_counts[5:].max()
     
-    return team100_kills, team200_kills, team100_share / max(team100_kills, 1), team200_share / max(team200_kills, 1)
+    return blue_kills, red_kills, blue_share / max(blue_kills, 1), red_share / max(red_kills, 1), blue_kills-red_kills
     
 def calc_building_features(match_info, last_min = 10):
     """ Calculates which team killed first tower, as well as number of tower kills for each team
@@ -174,9 +185,10 @@ def calc_building_features(match_info, last_min = 10):
         blue_inhib_kills = np.sum([x['teamId'] == 200 for x in inhib_deaths])
         red_inhib_kills = np.sum([x['teamId'] == 100 for x in inhib_deaths])
         
-        return [first_tower_factor, blue_tower_kills, red_tower_kills, first_inhib_factor, blue_inhib_kills, red_inhib_kills]
+        return [first_tower_factor, blue_tower_kills, red_tower_kills, blue_tower_kills - red_tower_kills, \
+                first_inhib_factor, blue_inhib_kills, red_inhib_kills]
     else:
-        return [-1, 0, 0, -1, 0, 0]
+        return [-1, 0, 0, 0, -1, 0, 0]
         
 def calc_elite_monster_features(match_info, last_min = 10):
     """ Calculates which team got first dragon, and number of dragons per team """
@@ -198,9 +210,10 @@ def calc_elite_monster_features(match_info, last_min = 10):
         blue_baron_kills = np.sum([x['killerId'] < 6 for x in baron_deaths])
         red_baron_kills = np.sum([x['killerId'] > 5 for x in baron_deaths])
         
-        return [first_drag_factor, blue_drag_kills, red_drag_kills, first_baron_factor, blue_baron_kills, red_baron_kills]
+        return [first_drag_factor, blue_drag_kills, red_drag_kills, blue_drag_kills - red_drag_kills, \
+                first_baron_factor, blue_baron_kills, red_baron_kills]
     else:
-        return [-1, 0, 0, -1, 0, 0]
+        return [-1, 0, 0, 0, -1, 0, 0]
         
 def calc_surrender_feature(match_info):
     """ Game is surrendered if <2 nexus turrets were destroyed
