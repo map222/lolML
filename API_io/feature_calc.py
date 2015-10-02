@@ -118,7 +118,9 @@ def identify_events( match_info, event_name, last_min =10):
             event_indices = [x['eventType'] == event_name for x in cur_frame]
             events_list = np.append(events_list, cur_frame[np.array(event_indices)])
         except KeyError:
-            print('Empty frame ' + str(i) + ' in match ' + str(match_info['matchId']))
+            continue
+            # this KeyError usually occurs in 2nd minute of game when nothing happens
+            #print('Empty frame ' + str(i) + ' in match ' + str(match_info['matchId']))
     return events_list
     
 def calc_gold_at_min( match_info, last_min ):
