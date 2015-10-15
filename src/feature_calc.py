@@ -7,7 +7,10 @@ Created on Sat Sep 19 19:57:47 2015
 
 import numpy as np
 import pandas as pd
+import logging
 import itertools
+import re
+import pdb
 
 col_names = ['first_dragon', 'blue_dragons', 'red_dragons', 'drag_diff',
              'first_baron', 'blue_barons', 'red_barons',
@@ -15,8 +18,46 @@ col_names = ['first_dragon', 'blue_dragons', 'red_dragons', 'drag_diff',
              'first_inhib', 'blue_inhibs', 'red_inhibs',
              'first_blood', 'gold_diff', 'blue_kills',
              'red_kills', 'blue_share', 'red_share', 'kills_diff',
+             'blue_0', 'blue_1', 'blue_2', 'blue_3', 'blue_4',
+             'red_0', 'red_1', 'red_2', 'red_3', 'red_4',
              'surrender', 'game_length', 'winner']
              
+red_teamId = 200
+blue_teamId = 100
+
+def calc_features_all_matches(full_match_info, last_min):
+    """
+    Apply calc_features_single_match to JSON of matches
+    col_names defined at start of file
+    """
+    # Set up logging
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler('lolML.log')
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logger.addHandler(handler)
+     
+    
+    #logger.info('Calculating features for all matches')
+    
+    games_df = pd.DataFrame(index = np.arange(np.size(full_match_info)), columns= col_names)
+    for i, cur_match in enumerate(full_match_info):
+        if np.size(cur_match['timeline']['frames']) <= last_min: # make sure match lasted long enough
+            continue
+        try:
+            games_df.loc[i] = calc_features_single_match(cur_match, last_min)
+        except:
+            logging.warning('Could not create factors for game: ' + str(i))
+    
+    #logger.info('Finished calculating features, now retyping columns')
+    
+    games_df = retype_columns(games_df)
+    #logger.info('Finished retyping, now dropping empty rows')
+    games_df = games_df.dropna()
+    #logger.info('Finished feature calculation!')
+    
+    return games_df
+
 def calc_features_single_match(match_info, last_min = 10):
     """ Calculate all features for a single game, and returns a pandas DataFrame
 
@@ -31,53 +72,20 @@ def calc_features_single_match(match_info, last_min = 10):
     building_features = calc_building_features(match_info, last_min)
     first_blood = int( match_info['teams'][0]['firstBlood'])
     gold_diff = calc_gold_at_min(match_info, last_min)
-    
+     
     kills_features = assign_kills(match_info, last_min)
+    blue_comp, red_comp = parse_team_comp(match_info)    
+    
     surrendered = calc_surrender_feature(match_info)
-    winner =  int(match_info['teams'][0]['winner'])
     game_length = np.size(match_info['timeline']['frames'])
+    winner =  int(match_info['teams'][0]['winner'])
     
     # use itertools to make a single list
-    all_features = list(itertools.chain.from_iterable([monster_features, building_features, [first_blood], 
-                                        [gold_diff], kills_features, [surrendered], [game_length], [winner]])) 
+    all_features = list(itertools.chain.from_iterable( [monster_features, building_features, [first_blood], 
+                                        [gold_diff], kills_features, blue_comp, red_comp, [surrendered],
+                                        [game_length], [winner]] ))
+                                        
     return all_features
-    
-def calc_features_all_matches(full_match_info, last_min):
-    """
-    Apply calc_features_single_match to JSON of matches
-    col_names defined at start of file
-    """
-    
-    games_df = pd.DataFrame(index = np.arange(np.size(full_match_info)), columns= col_names)
-    for i, cur_match in enumerate(full_match_info):
-        if np.size(cur_match['timeline']['frames']) > last_min: # make sure match lasted long enough
-            try:
-                games_df.loc[i] = calc_features_single_match(cur_match, last_min)
-            except:
-                print('Error creating factors in game: ' + str(i))
-        else:
-            continue
-    
-    games_df = retype_columns(games_df)
-    games_df = games_df.dropna()
-    
-    return games_df
-
-def retype_columns(games_df):
-    """ col_names defined at start of file """
-    
-    games_df = games_df.convert_objects(convert_numeric=True)
-    
-    import re
-    
-    # first blood, dragon, etc. are categories
-    first_cols = [ col for col in col_names if re.search('^first', col) ]
-    for col in first_cols:
-        games_df[col] = games_df[col].astype('category')
-        
-    games_df['surrender'] = games_df['surrender'].astype('category')
-    games_df['winner'] = games_df['winner'].astype('category')
-    return games_df
     
 def factor_first_event(match_info, event_list, team_key):    
     """ Creates factor for an event in event_list
@@ -117,10 +125,9 @@ def identify_events( match_info, event_name, last_min =10):
             cur_frame = np.array(match_info['timeline']['frames'][i]['events'])
             event_indices = [x['eventType'] == event_name for x in cur_frame]
             events_list = np.append(events_list, cur_frame[np.array(event_indices)])
-        except KeyError:
+        except KeyError:   # this KeyError usually occurs in 2nd minute of game when nothing happens
             continue
-            # this KeyError usually occurs in 2nd minute of game when nothing happens
-            #print('Empty frame ' + str(i) + ' in match ' + str(match_info['matchId']))
+            
     return events_list
     
 def calc_gold_at_min( match_info, last_min ):
@@ -135,7 +142,7 @@ def calc_gold_at_min( match_info, last_min ):
     """
     
     tenmin_frame = match_info['timeline']['frames'][last_min]['participantFrames'] # plus one because 0 = time 0
-    blue_gold = [tenmin_frame[x]['totalGold'] for x in ['1', '2', '3', '4', '5'] ]
+    blue_gold = [tenmin_frame[x]['totalGold'] for x in '12345' ]
     red_gold = [tenmin_frame[x]['totalGold'] for x in ['6', '7', '8', '9', '10'] ]
     
     return sum(blue_gold) - sum(red_gold)
@@ -167,6 +174,7 @@ def assign_kills( match_info, last_min = 10):
     
 def calc_building_features(match_info, last_min = 10):
     """ Calculates which team killed first tower, as well as number of tower kills for each team
+        Repeats the same for inhibitors
     """
     
     building_deaths = identify_events(match_info, 'BUILDING_KILL', last_min)
@@ -181,11 +189,11 @@ def calc_building_features(match_info, last_min = 10):
         first_inhib_factor = factor_first_event(match_info, inhib_deaths, 'firstInhibitor')
         
         # sum up kills for each team
-        blue_tower_kills = np.sum([x['teamId'] == 200 for x in tower_deaths])
-        red_tower_kills = np.sum([x['teamId'] == 100 for x in tower_deaths])
+        blue_tower_kills = np.sum([x['teamId'] == red_teamId for x in tower_deaths]) # red tower dead = blue killed it
+        red_tower_kills = np.sum([x['teamId'] == blue_teamId for x in tower_deaths])
         
-        blue_inhib_kills = np.sum([x['teamId'] == 200 for x in inhib_deaths])
-        red_inhib_kills = np.sum([x['teamId'] == 100 for x in inhib_deaths])
+        blue_inhib_kills = np.sum([x['teamId'] == red_teamId for x in inhib_deaths])
+        red_inhib_kills = np.sum([x['teamId'] == blue_teamId for x in inhib_deaths])
         
         return [first_tower_factor, blue_tower_kills, red_tower_kills, blue_tower_kills - red_tower_kills, \
                 first_inhib_factor, blue_inhib_kills, red_inhib_kills]
@@ -216,7 +224,15 @@ def calc_elite_monster_features(match_info, last_min = 10):
                 first_baron_factor, blue_baron_kills, red_baron_kills]
     else:
         return [-1, 0, 0, 0, -1, 0, 0]
-        
+
+def parse_team_comp(match_info):
+    """ Gets champion IDs for players on each team, arranged top-jng-mid-adc-sup """
+
+    blue_champs = [x['championId'] for x in match_info['participants'][:5]]
+    red_champs = [x['championId'] for x in match_info['participants'][5:]]
+    
+    return blue_champs, red_champs
+
 def calc_surrender_feature(match_info):
     """ Game is surrendered if <2 nexus turrets were destroyed
     """
@@ -226,3 +242,21 @@ def calc_surrender_feature(match_info):
     nexus_tower_deaths = tower_deaths[np.array([x['towerType'] == 'NEXUS_TURRET' for x in tower_deaths])]
     
     return int( nexus_tower_deaths.size < 2)
+    
+def retype_columns(games_df):
+    """ Convert columns of the data frame from object to int and categories
+    
+        col_names defined at start of file
+        """
+    
+    games_df = games_df.convert_objects(convert_numeric=True)
+    
+    # first blood, dragon, etc. are categories
+    first_cols = [ col for col in col_names if re.search('^first', col) ]
+    for col in first_cols:
+        games_df[col] = games_df[col].astype('category')
+                     
+        
+    games_df['surrender'] = games_df['surrender'].astype('category')
+    games_df['winner'] = games_df['winner'].astype('category')
+    return games_df
