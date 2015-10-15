@@ -20,7 +20,7 @@ col_names = ['first_dragon', 'blue_dragons', 'red_dragons', 'drag_diff',
              'red_kills', 'blue_share', 'red_share', 'kills_diff',
              'blue_0', 'blue_1', 'blue_2', 'blue_3', 'blue_4',
              'red_0', 'red_1', 'red_2', 'red_3', 'red_4',
-             'surrender', 'game_length', 'winner']
+             'surrender', 'game_length', 'winner', 'matchId']
              
 red_teamId = 200
 blue_teamId = 100
@@ -51,6 +51,8 @@ def calc_features_all_matches(full_match_info, last_min):
     
     #logger.info('Finished calculating features, now retyping columns')
     
+    games_df.set_index('matchId', inplace = True) 
+    
     games_df = retype_columns(games_df)
     #logger.info('Finished retyping, now dropping empty rows')
     games_df = games_df.dropna()
@@ -79,11 +81,12 @@ def calc_features_single_match(match_info, last_min = 10):
     surrendered = calc_surrender_feature(match_info)
     game_length = np.size(match_info['timeline']['frames'])
     winner =  int(match_info['teams'][0]['winner'])
+    matchId = int(match_info['matchId'])
     
     # use itertools to make a single list
     all_features = list(itertools.chain.from_iterable( [monster_features, building_features, [first_blood], 
                                         [gold_diff], kills_features, blue_comp, red_comp, [surrendered],
-                                        [game_length], [winner]] ))
+                                        [game_length], [winner], [matchId]] ))
                                         
     return all_features
     
