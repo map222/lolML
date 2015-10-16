@@ -12,12 +12,12 @@ import itertools
 import re
 import pdb
 
-col_names = ['first_dragon', 'blue_dragons', 'red_dragons', 'drag_diff',
+col_names = ['first_dragon', 'drag_diff', 'total_drag',
              'first_baron', 'blue_barons', 'red_barons',
-             'first_tower', 'blue_towers', 'red_towers', 'tower_diff',
+             'first_tower', 'tower_diff', 'total_tower',
              'first_inhib', 'blue_inhibs', 'red_inhibs',
-             'first_blood', 'gold_diff', 'blue_kills',
-             'red_kills', 'blue_share', 'red_share', 'kills_diff',
+             'first_blood', 'gold_diff', 'kill_diff',
+             'total_kill', 'blue_share', 'red_share',
              'blue_0', 'blue_1', 'blue_2', 'blue_3', 'blue_4',
              'red_0', 'red_1', 'red_2', 'red_3', 'red_4',
              'surrender', 'game_length', 'winner', 'matchId']
@@ -173,7 +173,7 @@ def assign_kills( match_info, last_min = 10):
     blue_share = kill_counts[:5].max()
     red_share = kill_counts[5:].max()
     
-    return blue_kills, red_kills, blue_share / max(blue_kills, 1), red_share / max(red_kills, 1), blue_kills-red_kills
+    return blue_kills-red_kills, blue_kills + red_kills, blue_share / max(blue_kills, 1), red_share / max(red_kills, 1)
     
 def calc_building_features(match_info, last_min = 10):
     """ Calculates which team killed first tower, as well as number of tower kills for each team
@@ -198,10 +198,10 @@ def calc_building_features(match_info, last_min = 10):
         blue_inhib_kills = np.sum([x['teamId'] == red_teamId for x in inhib_deaths])
         red_inhib_kills = np.sum([x['teamId'] == blue_teamId for x in inhib_deaths])
         
-        return [first_tower_factor, blue_tower_kills, red_tower_kills, blue_tower_kills - red_tower_kills, \
+        return [first_tower_factor, blue_tower_kills - red_tower_kills, blue_tower_kills + red_tower_kills, \
                 first_inhib_factor, blue_inhib_kills, red_inhib_kills]
     else:
-        return [-1, 0, 0, 0, -1, 0, 0]
+        return [-1, 0, 0, -1, 0, 0]
         
 def calc_elite_monster_features(match_info, last_min = 10):
     """ Calculates which team got first dragon, and number of dragons per team """
@@ -223,10 +223,10 @@ def calc_elite_monster_features(match_info, last_min = 10):
         blue_baron_kills = np.sum([x['killerId'] < 6 for x in baron_deaths])
         red_baron_kills = np.sum([x['killerId'] > 5 for x in baron_deaths])
         
-        return [first_drag_factor, blue_drag_kills, red_drag_kills, blue_drag_kills - red_drag_kills, \
+        return [first_drag_factor, blue_drag_kills - red_drag_kills, blue_drag_kills + red_drag_kills, \
                 first_baron_factor, blue_baron_kills, red_baron_kills]
     else:
-        return [-1, 0, 0, 0, -1, 0, 0]
+        return [-1, 0, 0, -1, 0, 0]
 
 def parse_team_comp(match_info):
     """ Gets champion IDs for players on each team, arranged top-jng-mid-adc-sup """
