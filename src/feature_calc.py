@@ -252,14 +252,17 @@ def retype_columns(games_df):
         col_names defined at start of file
         """
     
-    games_df = games_df.convert_objects(convert_numeric=True)
+    # first make all columns ints if they can be
+    non_int_col = ['blue_share', 'red_share', 'matchId']
+    int_col = [x for x in col_names if x not in non_int_col]
+    for col in int_col:
+        games_df[col] = games_df[col].astype('int64')
     
     # first blood, dragon, etc. are categories
     first_cols = [ col for col in col_names if re.search('^first', col) ]
     for col in first_cols:
         games_df[col] = games_df[col].astype('category')
-                     
-        
+    
     games_df['surrender'] = games_df['surrender'].astype('category')
     games_df['winner'] = games_df['winner'].astype('category')
     return games_df
