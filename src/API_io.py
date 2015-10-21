@@ -6,6 +6,8 @@ Created on Sat Sep 19 10:21:47 2015
 """
 import requests
 import numpy as np
+import itertools
+import pdb
 
 def load_featured_games( api_key, region = 'na'):
     """ Loads the game IDs of the "featured games"
@@ -38,20 +40,31 @@ def get_summoners_IDs_from_featured_games(featured_json, api_key, region = 'na')
     
     # get summoner IDs for the participants:
     
-    participant_names_single_string = urlify_string_list(participant_names)
-    summoner_url = 'https://'+region + '.api.pvp.net/api/lol/' + region + '/v1.4/summoner/by-name/' + participant_names_single_string + '?api_key=' + api_key
+    summoner_ids = [get_summoner_ids_from_names(x, api_key, region) for x in list(urlify_string_list(participant_names)) ]
+    
+    summoner_ids = list(itertools.chain.from_iterable(summoner_ids)) # then flatten them
+    
+    return participant_names, summoner_ids
+
+def get_summoner_ids_from_names(participant_names_single_string, api_key, region = 'na'):
+    """ Returns the summoner ids for a list of summoner names
+    """
+    summoner_url = 'https://'+region + '.api.pvp.net/api/lol/' + region + '/v1.4/summoner/by-name/' + \
+                    participant_names_single_string + '?api_key=' + api_key
+                    
     summoner_info = requests.get(summoner_url).json()
     
     summoner_ids = [x['id'] for x in list(summoner_info.values())]
-    
-    return participant_names, summoner_ids
+    return summoner_ids
 
 def urlify_string_list(list_of_string):
     """ Takes a list of strings, and turns into a single, long, comma separated string for url comprehension
     """
-    return ','.join(list_of_string[:30]) # convert to a single string for the url
+    max_summoners = 40 # maximum number of summoners you can query at once with the
+    for i in range(0, len(list_of_string), max_summoners):
+        yield ','.join(list_of_string[i:i+max_summoners])
 
-def make_matchlist_url_summoner_ID(cur_ID, solo_ranked_flag, season_flag, api_key, region = 'na'):
+def make_matchlist_url_summoner_ID(cur_ID, solo_ranked_flag = True, season_flag = True, api_key, region = 'na'):
     """ Creates a request url for the given summoner ID, and the flags
     
     Arguments:
