@@ -261,7 +261,7 @@ def retype_columns(games_df):
     # first blood, dragon, etc. are categories
     first_cols = [ col for col in col_names if re.search('^first', col) ]
     for col in first_cols:
-        games_df[col] = games_df[col].astype('category')
+        games_df[col] = games_df[col].astype('category', categories=[-1, 0, 1])
     
     games_df['surrender'] = games_df['surrender'].astype('category')
     games_df['winner'] = games_df['winner'].astype('category')
