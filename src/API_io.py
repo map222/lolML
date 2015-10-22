@@ -64,7 +64,7 @@ def urlify_string_list(list_of_string):
     for i in range(0, len(list_of_string), max_summoners):
         yield ','.join(list_of_string[i:i+max_summoners])
 
-def make_matchlist_url_summoner_ID(cur_ID, solo_ranked_flag = True, season_flag = True, api_key, region = 'na'):
+def make_matchlist_url_summoner_ID(cur_ID, api_key, solo_ranked_flag = True, season_flag = True, region = 'na'):
     """ Creates a request url for the given summoner ID, and the flags
     
     Arguments:
@@ -111,8 +111,14 @@ def rate_limited(maxPerSecond):
             return ret
         return rateLimitedFunction
     return decorate
-     
+
 @rate_limited(0.8)
 def get_limited_request(request_url):
-    return requests.get(request_url).json()
-    
+    num_tries = 10 # try a set number of times
+    for i in range(num_tries):
+        cur_request = requests.get(request_url)
+        if cur_request.status_code == 200:
+            return cur_request.json()
+        else:
+            time.sleep(1.2)
+    print('Request failed after ' + str(num_tries) + ' tries.')
