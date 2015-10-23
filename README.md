@@ -1,6 +1,6 @@
 # lolML - a League of Legends Machine Learning Project
 League of Legends is a popular online multiplayer game. During each game, teams farm for gold, fight each other, destroy towers, and kill dragons. Games end after one team destroys the other's nexus, or when one team surrenders. The purpose of this project is to predict the eventual winner of the game before the game ends.
 
-The project is still in an exploratory phase. I made a [short blog post](http://www.trailofpapers.net/2015/10/playing-with-random-forests-in-league.html) highlighting some of the early findings.
+Using statistics / feature like the difference of gold between the teams, or the difference in kills, a random forest classifier can predict the winner of a game with 90% accuracy. I made a [short blog post](http://www.trailofpapers.net/2015/10/playing-with-random-forests-in-league.html) highlighting these findings; a more full exploration can be found in  [this notebook](https://github.com/map222/lolML/blob/master/notebooks/Playing%20with%20Random%20Forests%20in%20League%20of%20Legends.ipynb). I am now using this dataset to explore how random forest hyperparameters can influence fits; in the future I would like to see how team composition can influence wins. Finally, I made a [short notebook](https://github.com/map222/lolML/blob/master/notebooks/Champion%20skill.ipynb) to visualize champion difficulty, and which champions are good in the early vs late game.
 
 [![Binder](http://mybinder.org/badge.svg)](http://mybinder.org/repo/map222/lolML)
