@@ -5,6 +5,10 @@ api_key.txt
 *.csv
 *.json
 *.pickle
+*.pyc
+
+# iPython checkpoints
+/notebooks/.ipynb_checkpoints
 
 # Windows image file caches
 Thumbs.db
