@@ -268,3 +268,29 @@ def retype_columns(games_df):
     games_df['surrender'] = games_df['surrender'].astype('category')
     games_df['winner'] = games_df['winner'].astype('category')
     return games_df
+
+def calc_second_diff(timelines_df):
+    """ Calculate second derivative of features (e.g. change in gold difference
+        between two different timepoints)
+        
+        list_of_df: list of dataframes at different timepoints, usually at 5 minute intervals
+    """
+    
+    def calc_diff_features(smaller_df, bigger_df, col_name):
+        """ subtract the feature col_name of smaller_df from bigger_df
+        """
+        return bigger_df.loc[smaller_df.index][col_name] - smaller_df[col_name]
+
+    columns = ['gold_diff', 'tower_diff', 'kill_diff', 'drag_diff']
+    for cur_col in columns:
+        new_colname = cur_col + '_diff'
+        timelines_df[0][new_colname] = 0;
+        for i, _ in enumerate(timelines_df[1:]):
+           # pdb.set_trace()
+            timelines_df[i+1][new_colname] = calc_diff_features(timelines_df[i+1], timelines_df[i], cur_col)
+    return timelines_df
+
+def calc_secondary_features(cur_df):
+    """ Calculate secondary features, like squared gold_diff """
+    cur_df['square_gold_diff'] = cur_df['gold_diff'] ** 2
+    return cur_df
