@@ -20,7 +20,7 @@ col_names = ['first_dragon', 'drag_diff', 'total_drag',
              'total_kill', 'blue_share', 'red_share',
              'blue_0', 'blue_1', 'blue_2', 'blue_3', 'blue_4',
              'red_0', 'red_1', 'red_2', 'red_3', 'red_4',
-             'surrender', 'game_length', 'winner', 'matchId']
+             'surrender', 'game_length', 'winner', 'matchId', 'utctimestamp']
              
 red_teamId = 200
 blue_teamId = 100
@@ -82,11 +82,13 @@ def calc_features_single_match(match_info, last_min = 10):
     game_length = np.size(match_info['timeline']['frames'])
     winner =  int(match_info['teams'][0]['winner'])
     matchId = int(match_info['matchId'])
+    timestamp= int(match_info['matchCreation'])
+    
     
     # use itertools to make a single list
     all_features = list(itertools.chain.from_iterable( [monster_features, building_features, [first_blood], 
                                         [gold_diff], kills_features, blue_comp, red_comp, [surrendered],
-                                        [game_length], [winner], [matchId]] ))
+                                        [game_length], [winner], [matchId], [timestamp]] ))
                                         
     return all_features
     

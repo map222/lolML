@@ -79,7 +79,7 @@ def make_matchhistory_url(summoner_ID, region_key = 'na'):
         
     return base_url.format(region_key, summoner_ID)
 
-def make_RIOT_request_params( api_key, solo_ranked_flag = False, season_flag = False, timeline_flag = False):
+def make_RIOT_request_params( api_key, solo_ranked_flag = False, season_year = False, timeline_flag = False):
     """ Creates a dictionary to pass to request.get containing parameters for whether we want ranked games,
         season, and the api_key
         
@@ -87,15 +87,17 @@ def make_RIOT_request_params( api_key, solo_ranked_flag = False, season_flag = F
     
     Arguments:
     solo_ranked_flag: whether to only get solo Queue games (when care about getting games for ML)
-    season_flag: Whether to get games from only a particular season (for now, Season 2015)
+    season_flag: if passed, season_year creates the correct string for the season parameter
+        i.e. 3 -> SEASON3 #(2013)
+             2014 -> SEASON2014
     """
     
     request_param_dict = {'api_key': api_key}
     
     if solo_ranked_flag:
         request_param_dict['rankedQueues'] = 'RANKED_SOLO_5x5'        
-    if season_flag:
-        request_param_dict['seasons'] = 'SEASON2015'
+    if season_year:
+        request_param_dict['seasons'] = 'SEASON' + str(season_year)
     if timeline_flag:
         request_param_dict['includeTimeline'] = 'true'
         
