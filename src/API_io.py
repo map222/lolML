@@ -79,25 +79,27 @@ def make_matchhistory_url(summoner_ID, region_key = 'na'):
         
     return base_url.format(region_key, summoner_ID)
 
-def make_RIOT_request_params( api_key, solo_ranked_flag = False, season_year = False, timeline_flag = False):
+def make_RIOT_request_params( api_key, solo_ranked_key = 'solo', season_year = False, timeline_flag = False, pre_str = ''):
     """ Creates a dictionary to pass to request.get containing parameters for whether we want ranked games,
         season, and the api_key
         
         Called in conjuction with urls made by make_matchlist_url_summoner_ID or make_match_info_url
     
     Arguments:
-    solo_ranked_flag: whether to only get solo Queue games (when care about getting games for ML)
-    season_flag: if passed, season_year creates the correct string for the season parameter
+    solo_ranked_key: whether to get Solo Queue ('solo'), Team Ranked ('team'), or all games (False)
+    season_year: if passed, season_year creates the correct string for the season parameter
         i.e. 3 -> SEASON3 #(2013)
              2014 -> SEASON2014
+    pre_str: string whether to look at preseason ('PRE') or not ('')
     """
     
     request_param_dict = {'api_key': api_key}
+    solo_team_dict = {'solo':'RANKED_SOLO_5x5', 'team':'RANKED_TEAM_5x5'}
     
-    if solo_ranked_flag:
-        request_param_dict['rankedQueues'] = 'RANKED_SOLO_5x5'        
+    if solo_ranked_key:
+        request_param_dict['rankedQueues'] = solo_team_dict[solo_ranked_key]  
     if season_year:
-        request_param_dict['seasons'] = 'SEASON' + str(season_year)
+        request_param_dict['seasons'] = pre_str + 'SEASON' + str(season_year)
     if timeline_flag:
         request_param_dict['includeTimeline'] = 'true'
         
@@ -149,3 +151,26 @@ def get_limited_request(request_url, request_params):
         else:
             time.sleep(1.2)
     print('Request failed after ' + str(num_tries) + ' tries.')
+    
+def get_master_challenger_Ids(api_key, region_key, queue= 'solo'):
+    """ Query RIOT's league API to get list of summonderIds in Master's and Challenger
+    
+    """
+    api_dict = {'api_key': api_key}
+    if queue == 'solo':
+        api_dict['type'] = 'RANKED_SOLO_5x5'
+    else:
+        api_dict['type'] = 'RANKED_TEAM_5x5'
+    base_url = 'https://{0}.api.pvp.net/api/lol/{0}/v2.5/league/{1}'
+    challenger_url = base_url.format(region_key, 'challenger')
+    challenger_json = requests.get(challenger_url, params = api_dict).json()
+    
+    challenger_ids = [ x['playerOrTeamId'] for x in challenger_json['entries']]
+    
+    
+    master_url = base_url.format(region_key, 'master')
+    master_json = requests.get(master_url, params = api_dict).json()
+    
+    master_ids = [ x['playerOrTeamId'] for x in master_json['entries']]
+    challenger_ids.extend(master_ids)
+    return challenger_ids
