@@ -63,8 +63,8 @@ def get_summoner_ids_from_names(participant_names_single_string, api_key, region
     
     # create parameters for the request
     api_dict = {'api_key': api_key}
-    summoner_url = 'https://'+region_key + '.api.pvp.net/api/lol/' + region_key + '/v1.4/summoner/by-name/' + \
-                    participant_names_single_string
+    base_url = 'https://{0}.api.pvp.net/api/lol/{0}/v1.4/summoner/by-name/{1}'
+    summoner_url = base_url.format(region_key, participant_names_single_string)
                     
     summoner_info = requests.get(summoner_url, params = api_dict).json()
     
@@ -152,25 +152,24 @@ def get_limited_request(request_url, request_params):
             time.sleep(1.2)
     print('Request failed after ' + str(num_tries) + ' tries.')
     
-def get_master_challenger_Ids(api_key, region_key, queue= 'solo'):
+def get_master_challenger_Ids(api_key, region_key, solo_ranked_key = 'solo'):
     """ Query RIOT's league API to get list of summonderIds in Master's and Challenger
     
     """
-    api_dict = {'api_key': api_key}
-    if queue == 'solo':
-        api_dict['type'] = 'RANKED_SOLO_5x5'
-    else:
-        api_dict['type'] = 'RANKED_TEAM_5x5'
-    base_url = 'https://{0}.api.pvp.net/api/lol/{0}/v2.5/league/{1}'
-    challenger_url = base_url.format(region_key, 'challenger')
-    challenger_json = requests.get(challenger_url, params = api_dict).json()
+        
+    api_dict = make_RIOT_request_params(api_key,solo_ranked_key = 'solo')
+    api_dict['type'] = api_dict.pop('rankedQueues') # different name for field in different request
     
-    challenger_ids = [ x['playerOrTeamId'] for x in challenger_json['entries']]
+    def get_league_ids(api_dict, region_key, challenger_or_master = 'challenger'):
+        base_url = 'https://{0}.api.pvp.net/api/lol/{0}/v2.5/league/{1}'
+        league_url = base_url.format(region_key, challenger_or_master)
+        league_json = requests.get(league_url, params = api_dict).json()
+        league_ids = [ x['playerOrTeamId'] for x in league_json['entries']]
+        return league_ids
     
+    challenger_ids = get_league_ids(api_dict, region_key, 'challenger')
     
-    master_url = base_url.format(region_key, 'master')
-    master_json = requests.get(master_url, params = api_dict).json()
+    master_ids = get_league_ids(api_dict, region_key, 'master')
     
-    master_ids = [ x['playerOrTeamId'] for x in master_json['entries']]
     challenger_ids.extend(master_ids)
     return challenger_ids
