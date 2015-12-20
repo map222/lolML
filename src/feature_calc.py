@@ -36,7 +36,6 @@ def calc_features_all_matches(full_match_info, last_min):
     handler = logging.FileHandler('lolML.log')
     handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(handler)
-     
     
     #logger.info('Calculating features for all matches')
     
@@ -293,4 +292,32 @@ def calc_second_diff(timelines_df):
 def calc_secondary_features(cur_df):
     """ Calculate secondary features, like squared gold_diff """
     cur_df['square_gold_diff'] = cur_df['gold_diff'] ** 2
+    
+    
     return cur_df
+    
+# turn the champion list into table
+def binarize_champions(timelines_df):
+    first_df = timelines_df[0]
+    blue_col = ['blue_' + str(x) for x in range(5)] # names of columns in original df
+    red_col = ['red_' + str(x) for x in range(5)]
+    
+    blue_list = [pd.get_dummies(first_df[ cur_col]) for cur_col in blue_col] # get dummy variables for each column
+    red_list = [pd.get_dummies(first_df[ cur_col]) for cur_col in red_col]
+    
+    blue_df =  blue_list[0] + blue_list[1] + blue_list[2] + blue_list[3] + blue_list[4] # merge the dummy variables
+    red_df =  red_list[0] + red_list[1] + red_list[2] + red_list[3] + red_list[4]
+    
+    for col in blue_df.columns:
+        blue_df[col] = blue_df[col].astype('category')
+        red_df[col] = red_df[col].astype('category')
+        
+    blue_df.columns = ['blue_' + str(cur_col) for cur_col in blue_df.columns] # change names for merge
+    red_df.columns = ['red_' + str(cur_col) for cur_col in red_df.columns]
+    
+    #pdb.set_trace()
+    new_timelines = []
+    for  cur_df in timelines_df:
+        new_timelines.append( pd.concat([cur_df, blue_df, red_df], join_axes = [cur_df.index], axis = 1) )
+    
+    return new_timelines
