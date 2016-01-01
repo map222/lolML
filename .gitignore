@@ -9,6 +9,7 @@ api_key.txt
 
 # iPython checkpoints
 /notebooks/.ipynb_checkpoints
+/notebooks/published/.ipynb_checkpoints
 
 # Windows image file caches
 Thumbs.db
