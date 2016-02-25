@@ -40,7 +40,7 @@ def calc_features_all_matches(full_match_info, last_min):
     handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(handler)
     
-    #logger.info('Calculating features for all matches')
+    logger.info('Calculating features for all matches')
     
     games_df = pd.DataFrame(index = np.arange(np.size(full_match_info)), columns= col_names)
     for i, cur_match in enumerate(full_match_info):
@@ -51,14 +51,14 @@ def calc_features_all_matches(full_match_info, last_min):
         except:
             logging.warning('Could not create factors for game: ' + str(i))
     
-    #logger.info('Finished calculating features, now retyping columns')
+    logger.info('Finished calculating features, now retyping columns')
     
     games_df.set_index('matchId', inplace = True) 
     
     games_df = retype_columns(games_df)
-    #logger.info('Finished retyping, now dropping empty rows')
+    logger.info('Finished retyping, now dropping empty rows')
     games_df = games_df.dropna()
-    #logger.info('Finished feature calculation!')
+    logger.info('Finished feature calculation!')
     
     return games_df
 
@@ -95,16 +95,17 @@ def calc_features_single_match(match_info, last_min = 10):
     return all_features
     
 def calc_elite_monster_features(match_info, last_min = 10):
-    """ Calculates which team got first dragon, and number of dragons per team """
+    """ Calculates which team got first dragon, and number of dragons per team
+        Repeats the same for barons """
     monster_events = identify_events(match_info, 'ELITE_MONSTER_KILL', last_min)
      
     if monster_events.size > 0:
         #pdb.set_trace()
-        # separate out the tower deaths and building_deaths
+        # separate out the dragon and baron kills
         drag_deaths = [x for x in monster_events if x['monsterType'] == 'DRAGON']
         baron_deaths = [x for x in monster_events if x['monsterType'] == 'BARON_NASHOR']
         
-        # calculate factor for whether first building was killed, and which team got it
+        # calculate factor for whether first monster was killed, and which team got it
         first_drag_factor = factor_first_event(match_info, drag_deaths, 'firstDragon')
         first_baron_factor = factor_first_event(match_info, baron_deaths, 'firstBaron')
         
@@ -150,64 +151,19 @@ def calc_building_features(match_info, last_min = 10):
         
 def calc_gold_at_min( match_info, last_min ):
     """
-    Calculate the gold for each team at 10 minutes (10th frame), and return the difference
+    Calculate the gold for each team at a specific minute, and return the difference between them
     
     Argument:
     match_info: a JSON of a single match
-    
-    Returns:
-    The difference between the sum of blue's gold and red's gold
+    last_min: minute at which to calculate
     """
     
-    tenmin_frame = match_info['timeline']['frames'][last_min]['participantFrames'] # plus one because 0 = time 0
-    blue_gold = [tenmin_frame[x]['totalGold'] for x in '12345' ]
-    red_gold = [tenmin_frame[x]['totalGold'] for x in ['6', '7', '8', '9', '10'] ]
+    last_min_frame = match_info['timeline']['frames'][last_min]['participantFrames'] # plus one because 0 = time 0
+    blue_gold = [last_min_frame[x]['totalGold'] for x in '12345' ]
+    red_gold = [last_min_frame[x]['totalGold'] for x in ['6', '7', '8', '9', '10'] ]
     
     return sum(blue_gold) - sum(red_gold)
 
-def factor_first_event(match_info, event_list, team_key):    
-    """ Creates factor for an event in event_list
-    
-    Arguments:
-    event_list: list of 'Event' objects
-    team_key: string of the event type in the 'Team' object, e.g. 'firstTower'
-    
-    Returns:
-    -1 if no event did not happen yet
-    0 if red team did event
-    1 if blue team did event
-    """
-    
-    if len(event_list) > 0:
-        first_event_team = match_info['teams'][0][team_key]
-        return int(first_event_team)
-    else:
-        return -1
-            
-def identify_events( match_info, event_name, last_min =10):
-    """
-    Get dictionary of events from a match; see assign_kills for example call of function
-    
-    Arguments:
-    match_info: a JSON of a single match
-    event_name: name of event you are looking for; this is key for dictionary
-    last_min: integer of last minute to look at
-    
-    Returns:
-    A numpy array containing events for champion kills
-    """
-        
-    events_list = np.empty(0) # start with empty list
-    for i in np.arange(1, last_min):
-        try:
-            cur_frame = np.array(match_info['timeline']['frames'][i]['events'])
-            event_indices = [x['eventType'] == event_name for x in cur_frame]
-            events_list = np.append(events_list, cur_frame[np.array(event_indices)])
-        except KeyError:   # this KeyError usually occurs in 2nd minute of game when nothing happens
-            continue
-            
-    return events_list
-    
 def assign_kills( match_info, last_min = 10):
     """
     Assigns a kills to blue or red, then sums all tlhe kills
@@ -241,6 +197,49 @@ def parse_team_comp(match_info):
     
     return blue_champs, red_champs
 
+def identify_events( match_info, event_name, last_min =10):
+    """
+    Get dictionary of events from a match; see assign_kills for example call of function
+    
+    Arguments:
+    match_info: a JSON of a single match
+    event_name: name of event you are looking for; this is key for dictionary
+    last_min: integer of last minute to look at
+    
+    Returns:
+    A list containing events for champion kills
+    """
+        
+    events_list = [] # start with empty list
+    for i in np.arange(1, last_min):
+        try:
+            cur_frame = match_info['timeline']['frames'][i]['events']
+            new_events = [x for x in cur_frame if x['eventType'] == event_name ]
+            events_list.extend(new_events)
+        except KeyError:   # this KeyError usually occurs in 2nd minute of game when nothing happens
+            continue
+            
+    return events_list
+    
+def factor_first_event(match_info, event_list, team_key):    
+    """ Creates factor for an event in event_list
+    
+    Arguments:
+    event_list: list of 'Event' objects
+    team_key: string of the event type in the 'Team' object, e.g. 'firstTower'
+    
+    Returns:
+    -1 if no event did not happen yet
+    0 if red team did event
+    1 if blue team did event
+    """
+    
+    if len(event_list) > 0:
+        first_event_team = match_info['teams'][0][team_key]
+        return int(first_event_team)
+    else:
+        return -1
+            
 def calc_surrender_feature(match_info):
     """ Game is surrendered if <2 nexus turrets were destroyed
     """
@@ -296,7 +295,6 @@ def calc_second_diff(timelines_df):
 def calc_secondary_features(cur_df):
     """ Calculate secondary features, like squared gold_diff """
     cur_df['square_gold_diff'] = cur_df['gold_diff'] ** 2
-    
     
     return cur_df
     
