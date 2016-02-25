@@ -4,6 +4,7 @@ api_key.txt
 # Data files
 *.csv
 *.json
+!tests/*
 *.pickle
 *.pyc
 *__pycache__

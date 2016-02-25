@@ -20,7 +20,7 @@ col_names = ['first_dragon', 'drag_diff', 'total_drag',
              'total_kill', 'blue_share', 'red_share',
              'blue_0', 'blue_1', 'blue_2', 'blue_3', 'blue_4',
              'red_0', 'red_1', 'red_2', 'red_3', 'red_4',
-             'surrender', 'game_length', 'winner', 'matchId', 'utctimestamp', 'version']
+             'surrender', 'game_length', 'winner', 'utctimestamp', 'version', 'matchId']
              
 red_teamId = 200
 blue_teamId = 100
@@ -90,7 +90,7 @@ def calc_features_single_match(match_info, last_min = 10):
     # use itertools to make a single list
     all_features = list(itertools.chain.from_iterable( [monster_features, building_features, [first_blood], 
                                         [gold_diff], kills_features, blue_comp, red_comp, [surrendered],
-                                        [game_length], [winner], [matchId], [timestamp], [version]] ))
+                                        [game_length], [winner], [timestamp], [version], [matchId]] ))
                                         
     return all_features
     
@@ -99,20 +99,21 @@ def calc_elite_monster_features(match_info, last_min = 10):
     monster_events = identify_events(match_info, 'ELITE_MONSTER_KILL', last_min)
      
     if monster_events.size > 0:
+        #pdb.set_trace()
         # separate out the tower deaths and building_deaths
-        drag_deaths = monster_events[np.array([x['monsterType'] == 'DRAGON' for x in monster_events])]
-        baron_deaths = monster_events[np.array([x['monsterType'] == 'BARON_NASHOR' for x in monster_events])]
+        drag_deaths = [x for x in monster_events if x['monsterType'] == 'DRAGON']
+        baron_deaths = [x for x in monster_events if x['monsterType'] == 'BARON_NASHOR']
         
         # calculate factor for whether first building was killed, and which team got it
         first_drag_factor = factor_first_event(match_info, drag_deaths, 'firstDragon')
         first_baron_factor = factor_first_event(match_info, baron_deaths, 'firstBaron')
         
         # sum up kills for each team
-        blue_drag_kills = np.sum([x['killerId'] < 6 for x in drag_deaths])
-        red_drag_kills = np.sum([x['killerId'] > 5 for x in drag_deaths])
+        blue_drag_kills = sum([x['killerId'] < 6 for x in drag_deaths])
+        red_drag_kills = sum([x['killerId'] > 5 for x in drag_deaths])
         
-        blue_baron_kills = np.sum([x['killerId'] < 6 for x in baron_deaths])
-        red_baron_kills = np.sum([x['killerId'] > 5 for x in baron_deaths])
+        blue_baron_kills = sum([x['killerId'] < 6 for x in baron_deaths])
+        red_baron_kills = sum([x['killerId'] > 5 for x in baron_deaths])
         
         return [first_drag_factor, blue_drag_kills - red_drag_kills, blue_drag_kills + red_drag_kills, \
                 first_baron_factor, blue_baron_kills, red_baron_kills]
@@ -128,19 +129,19 @@ def calc_building_features(match_info, last_min = 10):
     
     if building_deaths.size >0:
         # separate out the tower deaths and building_deaths
-        tower_deaths = building_deaths[np.array([x['buildingType'] == 'TOWER_BUILDING' for x in building_deaths])]
-        inhib_deaths = building_deaths[np.array([x['buildingType'] == 'INHIBITOR_BUILDING' for x in building_deaths])]
+        tower_deaths = [x for x in building_deaths if x['buildingType'] == 'TOWER_BUILDING']
+        inhib_deaths = [x for x in building_deaths if x['buildingType'] == 'INHIBITOR_BUILDING']
         
         # calculate factor for whether first building was killed, and which team got it
         first_tower_factor = factor_first_event(match_info, tower_deaths, 'firstTower')
         first_inhib_factor = factor_first_event(match_info, inhib_deaths, 'firstInhibitor')
         
         # sum up kills for each team
-        blue_tower_kills = np.sum([x['teamId'] == red_teamId for x in tower_deaths]) # red tower dead = blue killed it
-        red_tower_kills = np.sum([x['teamId'] == blue_teamId for x in tower_deaths])
+        blue_tower_kills = sum([x['teamId'] == red_teamId for x in tower_deaths]) # red tower dead = blue killed it
+        red_tower_kills = sum([x['teamId'] == blue_teamId for x in tower_deaths])
         
-        blue_inhib_kills = np.sum([x['teamId'] == red_teamId for x in inhib_deaths])
-        red_inhib_kills = np.sum([x['teamId'] == blue_teamId for x in inhib_deaths])
+        blue_inhib_kills = sum([x['teamId'] == red_teamId for x in inhib_deaths])
+        red_inhib_kills = sum([x['teamId'] == blue_teamId for x in inhib_deaths])
         
         return [first_tower_factor, blue_tower_kills - red_tower_kills, blue_tower_kills + red_tower_kills, \
                 first_inhib_factor, blue_inhib_kills, red_inhib_kills]
@@ -177,7 +178,7 @@ def factor_first_event(match_info, event_list, team_key):
     1 if blue team did event
     """
     
-    if event_list.size > 0:
+    if len(event_list) > 0:
         first_event_team = match_info['teams'][0][team_key]
         return int(first_event_team)
     else:
@@ -245,10 +246,10 @@ def calc_surrender_feature(match_info):
     """
     game_length = len(match_info['timeline']['frames'])
     building_deaths = identify_events(match_info, 'BUILDING_KILL', game_length-1)
-    tower_deaths = building_deaths[np.array([x['buildingType'] == 'TOWER_BUILDING' for x in building_deaths])]
-    nexus_tower_deaths = tower_deaths[np.array([x['towerType'] == 'NEXUS_TURRET' for x in tower_deaths])]
+    tower_deaths = [x for x in building_deaths if x['buildingType'] == 'TOWER_BUILDING']
+    nexus_tower_deaths = [x  for x in tower_deaths if x['towerType'] == 'NEXUS_TURRET']
     
-    return int( nexus_tower_deaths.size < 2)
+    return int( len(nexus_tower_deaths) < 2)
     
 def retype_columns(games_df):
     """ Convert columns of the data frame from object to int and categories
