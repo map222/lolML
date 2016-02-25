@@ -94,7 +94,7 @@ def make_RIOT_request_params( api_key, solo_ranked_key = 'solo', season_year = F
     """
     
     request_param_dict = {'api_key': api_key}
-    solo_team_dict = {'solo':'RANKED_SOLO_5x5', 'team':'RANKED_TEAM_5x5'}
+    solo_team_dict = {'solo':'RANKED_SOLO_5x5', 'team':'RANKED_TEAM_5x5', 'builder':'TEAM_BUILDER_DRAFT_RANKED_5x5'}
     
     if solo_ranked_key:
         request_param_dict['rankedQueues'] = solo_team_dict[solo_ranked_key]  
@@ -115,7 +115,7 @@ def parse_match_json_for_matchIDs(match_histories, region_key):
         if cur_matches['totalGames'] > 0: # for some summoners, for whatever reason, the totalGames will be 0
             match_IDs = np.append( match_IDs, [x['matchId'] for x in cur_matches['matches'] if x['region'] == region_key.upper()] )
     match_IDs = np.unique(match_IDs)
-    return match_IDs.astype(int)
+    return match_IDs.astype(np.int64)
 
 def make_match_info_url(match_ID, region_key = 'na'):
     """ Creates a url for passage to requests.get to get all matches by a single player.
