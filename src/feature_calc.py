@@ -20,7 +20,7 @@ col_names = ['first_dragon', 'drag_diff', 'total_drag',
              'total_kill', 'blue_share', 'red_share',
              'blue_0', 'blue_1', 'blue_2', 'blue_3', 'blue_4',
              'red_0', 'red_1', 'red_2', 'red_3', 'red_4',
-             'surrender', 'game_length', 'winner', 'matchId', 'utctimestamp']
+             'surrender', 'game_length', 'winner', 'matchId', 'utctimestamp', 'version']
              
 red_teamId = 200
 blue_teamId = 100
@@ -85,12 +85,12 @@ def calc_features_single_match(match_info, last_min = 10):
     winner =  int(match_info['teams'][0]['winner'])
     matchId = int(match_info['matchId'])
     timestamp= int(match_info['matchCreation'])
-    
+    version = '.'.join(match_info['matchVersion'].split('.')[:2])
     
     # use itertools to make a single list
     all_features = list(itertools.chain.from_iterable( [monster_features, building_features, [first_blood], 
                                         [gold_diff], kills_features, blue_comp, red_comp, [surrendered],
-                                        [game_length], [winner], [matchId], [timestamp]] ))
+                                        [game_length], [winner], [matchId], [timestamp], [version]] ))
                                         
     return all_features
     
@@ -257,7 +257,7 @@ def retype_columns(games_df):
         """
     
     # first make all columns ints if they can be
-    non_int_col = ['blue_share', 'red_share', 'matchId']
+    non_int_col = ['blue_share', 'red_share', 'matchId', 'version']
     int_col = [x for x in col_names if x not in non_int_col]
     for col in int_col:
         games_df[col] = games_df[col].astype('int64')
