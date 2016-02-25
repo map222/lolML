@@ -6,10 +6,13 @@ api_key.txt
 *.json
 *.pickle
 *.pyc
+*__pycache__
 
 # iPython checkpoints
 /notebooks/.ipynb_checkpoints
 /notebooks/published/.ipynb_checkpoints
+*checkpoint.ipynb
+
 
 # Windows image file caches
 Thumbs.db
