@@ -54,7 +54,7 @@ def calc_features_all_matches(full_match_info, last_min):
     logger.info('Finished calculating features, now retyping columns')
     
     games_df.set_index('matchId', inplace = True) 
-    
+
     games_df = retype_columns(games_df)
     logger.info('Finished retyping, now dropping empty rows')
     games_df = games_df.dropna()
@@ -91,7 +91,7 @@ def calc_features_single_match(match_info, last_min = 10):
     all_features = list(itertools.chain.from_iterable( [monster_features, building_features, [first_blood], 
                                         [gold_diff], kills_features, blue_comp, red_comp, [surrendered],
                                         [game_length], [winner], [timestamp], [version], [matchId]] ))
-                                        
+
     return all_features
     
 def calc_elite_monster_features(match_info, last_min = 10):
@@ -99,7 +99,7 @@ def calc_elite_monster_features(match_info, last_min = 10):
         Repeats the same for barons """
     monster_events = identify_events(match_info, 'ELITE_MONSTER_KILL', last_min)
      
-    if monster_events.size > 0:
+    if len(monster_events) > 0:
         #pdb.set_trace()
         # separate out the dragon and baron kills
         drag_deaths = [x for x in monster_events if x['monsterType'] == 'DRAGON']
@@ -128,7 +128,7 @@ def calc_building_features(match_info, last_min = 10):
     
     building_deaths = identify_events(match_info, 'BUILDING_KILL', last_min)
     
-    if building_deaths.size >0:
+    if len(building_deaths) >0:
         # separate out the tower deaths and building_deaths
         tower_deaths = [x for x in building_deaths if x['buildingType'] == 'TOWER_BUILDING']
         inhib_deaths = [x for x in building_deaths if x['buildingType'] == 'INHIBITOR_BUILDING']
@@ -259,6 +259,7 @@ def retype_columns(games_df):
     # first make all columns ints if they can be
     non_int_col = ['blue_share', 'red_share', 'matchId', 'version']
     int_col = [x for x in col_names if x not in non_int_col]
+
     for col in int_col:
         games_df[col] = games_df[col].astype('int64')
     
@@ -288,7 +289,6 @@ def calc_second_diff(timelines_df):
         new_colname = cur_col + '_diff'
         timelines_df[0][new_colname] = 0;
         for i, _ in enumerate(timelines_df[1:]):
-           # pdb.set_trace()
             timelines_df[i+1][new_colname] = calc_diff_features(timelines_df[i+1], timelines_df[i], cur_col)
     return timelines_df
 
